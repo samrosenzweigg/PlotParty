@@ -199,17 +199,25 @@ input { -webkit-user-select: text; user-select: text; }
 .warn { color: var(--muted); font-size: 0.78rem; margin: 0.5rem 0 0; }
 
 /* ---------------------------------------------------------- announce */
-.announce { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(12,5,22,.72); pointer-events: none; }
-.an-card { text-align: center; padding: 1.5rem 2rem; animation: burst .4s cubic-bezier(.2,1.4,.4,1); }
-.an-sub { color: var(--marigold); font-size: 0.85rem; margin: 0 0 0.3rem; font-weight: 600; }
-.an-text { font-family: var(--display); font-variation-settings: 'wdth' 80; font-weight: 800; font-size: clamp(2rem, 11vw, 3.4rem); line-height: 1; margin: 0; text-wrap: balance; }
-.announce.out { animation: fade .3s forwards; }
-@keyframes burst { from { transform: scale(.6) rotate(-3deg); opacity: 0; } }
-@keyframes fade { to { opacity: 0; } }
+/* A banner, never a blocking overlay — a stuck one must not kill the screen. */
+.announce {
+  position: fixed; top: calc(env(safe-area-inset-top) + 0.4rem); left: 50%;
+  z-index: 30; pointer-events: none; width: min(92vw, 25rem); transform: translateX(-50%);
+}
+.an-card {
+  background: var(--plum); border: 1.5px solid var(--marigold); border-radius: 14px;
+  padding: 0.6rem 1rem; text-align: center; box-shadow: 0 12px 30px rgba(0,0,0,.5);
+  animation: burst .35s cubic-bezier(.2,1.4,.4,1);
+}
+.an-sub { color: var(--marigold); font-size: 0.72rem; margin: 0 0 0.1rem; font-weight: 600; }
+.an-text { font-family: var(--display); font-variation-settings: 'wdth' 82; font-weight: 800; font-size: clamp(1.05rem, 5vw, 1.5rem); line-height: 1.1; margin: 0; text-wrap: balance; }
+.announce.out { animation: fade .28s forwards; }
+@keyframes burst { from { transform: scale(.7) translateY(-14px); opacity: 0; } }
+@keyframes fade { to { opacity: 0; transform: translateY(-10px); } }
 
 /* ---------------------------------------------------------- tile */
 .tile-wrap { position: fixed; inset: 0; z-index: 50; background: rgba(10,4,18,.9); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 1.2rem; }
-.tile-wrap img { width: min(78vw, 44dvh); border-radius: 10px; }
+.tile-wrap img { width: min(78vw, 44dvh); aspect-ratio: 1; object-fit: contain; border-radius: 10px; background: var(--ink-deep); }
 .tile-wrap p { color: var(--muted); font-size: 0.85rem; text-align: center; margin: 0; max-width: 20rem; }
 .tile-wrap .btn { max-width: 20rem; }
 
@@ -369,21 +377,39 @@ function show(name) {
 }
 
 // ------------------------------------------------------------- announcements
-let anQueue = [], anBusy = false;
-function pushAnnounce(a) { anQueue.push(a); if (!anBusy) runAnnounce(); }
+let anQueue = [], anTimer = null, anShownAt = 0;
+
+function pushAnnounce(a) {
+  anQueue.push(a);
+  if (anQueue.length > 3) anQueue.splice(0, anQueue.length - 3); // drop the backlog
+  if (!anTimer) runAnnounce();
+}
+
+function hideAnnounce() {
+  clearTimeout(anTimer); anTimer = null;
+  const box = $('announce');
+  box.classList.add('out');
+  setTimeout(() => { box.hidden = true; box.classList.remove('out'); runAnnounce(); }, 280);
+}
+
 function runAnnounce() {
   const a = anQueue.shift();
-  if (!a) { anBusy = false; return; }
-  anBusy = true;
+  if (!a) return;
   const box = $('announce');
   $('an-sub').textContent = a.sub || '';
   $('an-text').textContent = a.text;
   box.hidden = false; box.classList.remove('out');
-  setTimeout(() => {
-    box.classList.add('out');
-    setTimeout(() => { box.hidden = true; runAnnounce(); }, 300);
-  }, a.kind === 'join' ? 900 : 1500);
+  anShownAt = Date.now();
+  anTimer = setTimeout(hideAnnounce, a.kind === 'join' ? 1100 : 1700);
 }
+
+// iOS suspends timers in background tabs; never let a banner stick around.
+function sweepAnnounce() {
+  if (!$('announce').hidden && Date.now() - anShownAt > 2500) hideAnnounce();
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) sweepAnnounce(); });
+setInterval(sweepAnnounce, 1000);
+
 socket.on('announce', pushAnnounce);
 
 // ------------------------------------------------------------- home
@@ -431,7 +457,7 @@ $('btn-clear').addEventListener('click', () => socket.emit('clearBoard'));
 $('btn-lobby').addEventListener('click', () => { socket.emit('backToLobby'); closeSheet(); });
 $('sheet-close').addEventListener('click', closeSheet);
 $('sheet').addEventListener('click', e => { if (e.target === $('sheet')) closeSheet(); });
-function openSheet() { $('sheet').hidden = false; if (state) fillSheet(state); }
+function openSheet() { $('tile-wrap').hidden = true; $('sheet').hidden = false; if (state) fillSheet(state); }
 function closeSheet() { $('sheet').hidden = true; }
 $('lobby-gear').addEventListener('click', openSheet);
 $('game-gear').addEventListener('click', openSheet);
@@ -747,8 +773,7 @@ function sendItem() {
 $('input-item').addEventListener('keydown', e => { if (e.key === 'Enter') sendItem(); });
 
 // ------------------------------------------------------------- social tile
-function makeTile() {
-  if (!state) return;
+function drawBoardCanvas() {
   const S = 1080, c = document.createElement('canvas');
   c.width = S; c.height = S;
   const g = c.getContext('2d');
@@ -817,12 +842,47 @@ function makeTile() {
   g.font = '500 24px "Instrument Sans", sans-serif';
   g.fillText('Faded dots are the group average for each thing.', 70, S - 40);
 
-  const url = c.toDataURL('image/png');
-  $('tile-img').src = url;
-  $('tile-download').href = url;
-  $('tile-wrap').hidden = false;
+  return c;
 }
-$('tile-close').addEventListener('click', () => { $('tile-wrap').hidden = true; });
+
+let tileUrl = null;
+function makeTile() {
+  if (!state) return;
+  closeSheet();
+  const img = $('tile-img'), note = $('tile-note'), dl = $('tile-download');
+  img.hidden = true; dl.hidden = true;
+  note.textContent = 'Drawing the board…';
+  $('tile-wrap').hidden = false;
+
+  const finish = url => {
+    tileUrl = url;
+    img.src = url; img.hidden = false;
+    dl.href = url; dl.hidden = false;
+    note.textContent = 'Press and hold the image to save it to your photos.';
+  };
+  img.onerror = () => {
+    note.textContent = 'This browser would not display the image. The Download button still works.';
+  };
+
+  try {
+    const canvas = drawBoardCanvas();
+    if (tileUrl) { URL.revokeObjectURL(tileUrl); tileUrl = null; }
+    if (canvas.toBlob) {
+      canvas.toBlob(b => {
+        if (b) finish(URL.createObjectURL(b));
+        else finish(canvas.toDataURL('image/png'));
+      }, 'image/png');
+    } else {
+      finish(canvas.toDataURL('image/png'));
+    }
+  } catch (err) {
+    note.textContent = 'Could not draw the board: ' + ((err && err.message) || err);
+  }
+}
+$('tile-close').addEventListener('click', () => {
+  $('tile-wrap').hidden = true;
+  if (tileUrl) { URL.revokeObjectURL(tileUrl); tileUrl = null; }
+});
 $('game-share').addEventListener('click', makeTile);
 $('lobby-share').addEventListener('click', makeTile);
 
