@@ -7,7 +7,6 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Everything the browser needs lives in one file.
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 const PORT = process.env.PORT || 3000;
@@ -15,15 +14,18 @@ const PORT = process.env.PORT || 3000;
 // ---------------------------------------------------------------- constants
 
 const COLORS = [
-  '#FF5D73', '#FFC145', '#4FD1A5', '#5B8DEF',
-  '#C77DFF', '#FF8A3D', '#26D0CE', '#F27EB0'
+  '#FF5D73', '#FFC145', '#4FD1A5', '#5B8DEF', '#C77DFF',
+  '#FF8A3D', '#26D0CE', '#F27EB0', '#9BE564', '#FF6B4A'
 ];
 
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I or O
-const REVEAL_SECONDS = 45;
-const MAX_PLAYERS = 8;
+const COUNTDOWN_CHOICES = [15, 30, 45, 60, 90];
+const MAX_PLAYERS = 10;
+const MAX_MARKS = 40;
 
-/** @type {Map<string, Room>} */
+const MODE_LABEL = { live: 'Live', reveal: 'Countdown', clue: 'Clue giver' };
+
+/** @type {Map<string, object>} */
 const rooms = new Map();
 
 // ---------------------------------------------------------------- helpers
@@ -48,6 +50,9 @@ function makeRoom(code) {
     phase: 'lobby',
     turnIndex: 0,
     round: null,
+    pendingTarget: null,
+    boardMarks: [],           // averages kept on the board across rounds
+    settings: { countdown: 45 },
     history: [],
     timer: null,
     deadline: null,
@@ -55,32 +60,36 @@ function makeRoom(code) {
   };
 }
 
-function activePlayers(room) {
-  return room.players.filter(p => p.connected);
-}
+const activePlayers = room => room.players.filter(p => p.connected);
+const findPlayer = (room, id) => room.players.find(p => p.id === id);
+const clamp01 = n =>
+  typeof n !== 'number' || Number.isNaN(n) ? 0.5 : Math.min(1, Math.max(0, n));
+const clean = (str, max) => String(str || '').replace(/\s+/g, ' ').trim().slice(0, max);
+const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
-function findPlayer(room, id) {
-  return room.players.find(p => p.id === id);
-}
-
-function clamp01(n) {
-  if (typeof n !== 'number' || Number.isNaN(n)) return 0.5;
-  return Math.min(1, Math.max(0, n));
-}
-
-function clean(str, max) {
-  return String(str || '').replace(/\s+/g, ' ').trim().slice(0, max);
-}
-
-function distance(a, b) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-// The player whose turn it is to submit a thing.
 function currentSubmitter(room) {
   const active = activePlayers(room);
   if (!active.length) return null;
   return active[room.turnIndex % active.length];
+}
+
+// A spot worth naming something for: not dead centre, not jammed in a corner.
+function randomTarget() {
+  let p;
+  do {
+    p = { x: 0.12 + Math.random() * 0.76, y: 0.12 + Math.random() * 0.76 };
+  } while (distance(p, { x: 0.5, y: 0.5 }) < 0.18);
+  return p;
+}
+
+function announce(room, kind, text, sub) {
+  io.to(room.code).emit('announce', { kind, text, sub: sub || null });
+}
+
+function clearBoard(room, why) {
+  room.boardMarks = [];
+  room.players.forEach(p => { p.score = 0; });
+  announce(room, 'cleared', 'Board wiped', why || 'Every mark is gone');
 }
 
 // ---------------------------------------------------------------- rounds
@@ -88,6 +97,7 @@ function currentSubmitter(room) {
 function beginRound(room) {
   clearTimer(room);
   room.round = null;
+  room.pendingTarget = room.mode === 'clue' ? randomTarget() : null;
   room.phase = 'submit';
   broadcast(room);
 }
@@ -96,90 +106,90 @@ function startPlacing(room, item, submitterId) {
   room.round = {
     item,
     submitterId,
-    placements: {},   // playerId -> {x, y}
-    locked: {},       // playerId -> true
+    target: room.mode === 'clue' ? room.pendingTarget : null,
+    placements: {},
+    locked: {},
     scores: null
   };
-  if (room.mode === 'clue') {
-    room.phase = 'clue-place';
-  } else {
-    room.phase = 'place';
-    if (room.mode === 'reveal') startTimer(room, REVEAL_SECONDS);
-  }
+  room.pendingTarget = null;
+  room.phase = 'place';
+  if (room.mode === 'reveal') startTimer(room, room.settings.countdown);
   broadcast(room);
 }
 
-// Who is expected to lock in during the current placing phase?
 function expectedPlacers(room) {
   const active = activePlayers(room);
-  if (room.phase === 'clue-place') {
-    return active.filter(p => p.id === room.round.submitterId);
-  }
-  if (room.phase === 'place' && room.mode === 'clue') {
-    return active.filter(p => p.id !== room.round.submitterId);
-  }
+  if (room.mode === 'clue') return active.filter(p => p.id !== room.round.submitterId);
   return active;
 }
 
 function maybeReveal(room) {
   const expected = expectedPlacers(room);
   if (!expected.length) return;
-  const allIn = expected.every(p => room.round.locked[p.id]);
-  if (!allIn) return;
-
-  if (room.phase === 'clue-place') {
-    room.phase = 'place';
-    broadcast(room);
-    return;
-  }
-  revealRound(room);
+  if (expected.every(p => room.round.locked[p.id])) revealRound(room);
 }
 
 function revealRound(room) {
   clearTimer(room);
-  if (!room.round) return;
+  if (!room.round || room.phase === 'reveal') return;
 
   const round = room.round;
-  const guesserIds = Object.keys(round.placements).filter(
-    id => !(room.mode === 'clue' && id === round.submitterId)
-  );
+  const ids = Object.keys(round.placements);
 
-  // Average of everyone's placement (the clue-giver's target is excluded in clue mode).
-  if (guesserIds.length) {
+  if (ids.length) {
     round.average = {
-      x: guesserIds.reduce((s, id) => s + round.placements[id].x, 0) / guesserIds.length,
-      y: guesserIds.reduce((s, id) => s + round.placements[id].y, 0) / guesserIds.length
+      x: ids.reduce((s, id) => s + round.placements[id].x, 0) / ids.length,
+      y: ids.reduce((s, id) => s + round.placements[id].y, 0) / ids.length
     };
-    // Furthest from the pack — the fun stat.
     let far = null;
-    for (const id of guesserIds) {
+    for (const id of ids) {
       const d = distance(round.placements[id], round.average);
       if (!far || d > far.d) far = { id, d };
     }
-    round.outlierId = guesserIds.length > 2 ? far.id : null;
+    round.outlierId = ids.length > 2 ? far.id : null;
+    round.spread =
+      ids.reduce((s, id) => s + distance(round.placements[id], round.average), 0) / ids.length;
   }
 
-  // Clue mode: score each guess against the clue-giver's secret placement.
-  if (room.mode === 'clue' && round.placements[round.submitterId]) {
-    const target = round.placements[round.submitterId];
+  // Clue mode: everyone is scored against the spot the grid picked.
+  if (room.mode === 'clue' && round.target) {
     round.scores = {};
-    for (const id of guesserIds) {
-      const d = distance(round.placements[id], target);
-      const points = Math.max(0, Math.round(100 * (1 - Math.min(d, 1))));
-      round.scores[id] = points;
+    let total = 0;
+    for (const id of ids) {
+      const pts = Math.max(0, Math.round(
+        100 * (1 - Math.min(distance(round.placements[id], round.target), 1))
+      ));
+      round.scores[id] = pts;
+      total += pts;
       const p = findPlayer(room, id);
-      if (p) p.score += points;
+      if (p) p.score += pts;
+    }
+    // The namer is scored on how well the group found their thing.
+    if (ids.length) {
+      const bonus = Math.round(total / ids.length);
+      round.scores[round.submitterId] = bonus;
+      const namer = findPlayer(room, round.submitterId);
+      if (namer) namer.score += bonus;
     }
   }
 
+  if (round.average) {
+    room.boardMarks.push({
+      item: round.item,
+      x: round.average.x,
+      y: round.average.y,
+      spread: round.spread || 0
+    });
+    if (room.boardMarks.length > MAX_MARKS) room.boardMarks.shift();
+  }
+
   room.phase = 'reveal';
+  announce(room, 'reveal', round.item, 'Everyone in');
   broadcast(room);
 }
 
 function nextRound(room) {
-  if (room.round) {
-    room.history.push({ item: room.round.item, average: room.round.average || null });
-  }
+  if (room.round) room.history.push({ item: room.round.item });
   const active = activePlayers(room);
   if (active.length) room.turnIndex = (room.turnIndex + 1) % active.length;
   beginRound(room);
@@ -197,36 +207,33 @@ function startTimer(room, seconds) {
   clearTimer(room);
   room.deadline = Date.now() + seconds * 1000;
   room.timer = setInterval(() => {
-    if (Date.now() >= room.deadline) {
-      revealRound(room);
-    } else {
-      io.to(room.code).emit('tick', {
-        secondsLeft: Math.ceil((room.deadline - Date.now()) / 1000)
-      });
-    }
-  }, 500);
+    if (Date.now() >= room.deadline) revealRound(room);
+    else io.to(room.code).emit('tick', {
+      secondsLeft: Math.ceil((room.deadline - Date.now()) / 1000)
+    });
+  }, 400);
 }
 
 // ---------------------------------------------------------------- state view
 
-// Each player gets their own view: hidden placements stay hidden.
 function viewFor(room, viewerId) {
   const round = room.round;
   const submitter = currentSubmitter(room);
 
   let visible = {};
-  let placedIds = [];
-
   if (round) {
-    placedIds = Object.keys(round.placements);
-    const showAll =
-      room.phase === 'reveal' ||
-      (room.mode === 'live' && room.phase === 'place');
+    const showAll = room.phase === 'reveal' || (room.mode === 'live' && room.phase === 'place');
+    if (showAll) visible = round.placements;
+    else if (round.placements[viewerId]) visible = { [viewerId]: round.placements[viewerId] };
+  }
 
-    if (showAll) {
-      visible = round.placements;
-    } else if (round.placements[viewerId]) {
-      visible = { [viewerId]: round.placements[viewerId] };
+  // Only the person naming the thing sees where the grid pointed.
+  let myTarget = null;
+  if (room.mode === 'clue') {
+    if (room.phase === 'submit' && submitter && submitter.id === viewerId) {
+      myTarget = room.pendingTarget;
+    } else if (round && round.submitterId === viewerId) {
+      myTarget = round.target;
     }
   }
 
@@ -237,22 +244,25 @@ function viewFor(room, viewerId) {
     mode: room.mode,
     phase: room.phase,
     axes: room.axes,
+    settings: room.settings,
+    countdownChoices: COUNTDOWN_CHOICES,
+    palette: COLORS,
+    takenColors: room.players.filter(p => p.id !== viewerId).map(p => p.color),
+    boardMarks: room.boardMarks,
     players: room.players.map(p => ({
-      id: p.id,
-      name: p.name,
-      color: p.color,
-      connected: p.connected,
-      score: p.score,
-      hasPlaced: round ? placedIds.includes(p.id) : false,
+      id: p.id, name: p.name, color: p.color,
+      connected: p.connected, score: p.score,
+      hasPlaced: round ? !!round.placements[p.id] : false,
       locked: round ? !!round.locked[p.id] : false
     })),
     submitterId: submitter ? submitter.id : null,
+    myTarget,
     secondsLeft: room.deadline
-      ? Math.max(0, Math.ceil((room.deadline - Date.now()) / 1000))
-      : null,
+      ? Math.max(0, Math.ceil((room.deadline - Date.now()) / 1000)) : null,
     round: round && {
       item: round.item,
       submitterId: round.submitterId,
+      target: room.phase === 'reveal' ? round.target : null,
       placements: visible,
       average: round.average || null,
       outlierId: round.outlierId || null,
@@ -272,19 +282,13 @@ function broadcast(room) {
 
 io.on('connection', socket => {
   let roomCode = null;
-
   const getRoom = () => (roomCode ? rooms.get(roomCode) : null);
+  const isHost = room => room && room.hostId === socket.id;
 
   function attach(room, name) {
     const used = room.players.map(p => p.color);
     const color = COLORS.find(c => !used.includes(c)) || COLORS[room.players.length % COLORS.length];
-    const player = {
-      id: socket.id,
-      name: clean(name, 16) || 'Player',
-      color,
-      connected: true,
-      score: 0
-    };
+    const player = { id: socket.id, name: clean(name, 16) || 'Player', color, connected: true, score: 0 };
     room.players.push(player);
     roomCode = room.code;
     socket.join(room.code);
@@ -306,14 +310,24 @@ io.on('connection', socket => {
     if (activePlayers(room).length >= MAX_PLAYERS) {
       return ack && ack({ ok: false, error: `Room is full (${MAX_PLAYERS} players).` });
     }
-    attach(room, name);
+    const p = attach(room, name);
     if (typeof ack === 'function') ack({ ok: true, code: room.code });
+    announce(room, 'join', `${p.name} is in`, null);
+    broadcast(room);
+  });
+
+  socket.on('setColor', hex => {
+    const room = getRoom();
+    if (!room || room.phase !== 'lobby' || !COLORS.includes(hex)) return;
+    if (room.players.some(p => p.id !== socket.id && p.color === hex)) return;
+    const me = findPlayer(room, socket.id);
+    if (me) me.color = hex;
     broadcast(room);
   });
 
   socket.on('setAxes', axes => {
     const room = getRoom();
-    if (!room || room.hostId !== socket.id) return;
+    if (!isHost(room)) return;
     room.axes = {
       top: clean(axes.top, 24) || room.axes.top,
       bottom: clean(axes.bottom, 24) || room.axes.bottom,
@@ -325,17 +339,33 @@ io.on('connection', socket => {
 
   socket.on('setMode', mode => {
     const room = getRoom();
-    if (!room || room.hostId !== socket.id) return;
-    if (!['live', 'reveal', 'clue'].includes(mode)) return;
+    if (!isHost(room) || !MODE_LABEL[mode] || room.mode === mode) return;
     room.mode = mode;
+    clearBoard(room, 'New mode, fresh grid');
+    announce(room, 'mode', MODE_LABEL[mode], 'Mode changed');
+    if (room.phase !== 'lobby') beginRound(room);
+    else broadcast(room);
+  });
+
+  socket.on('setCountdown', secs => {
+    const room = getRoom();
+    if (!isHost(room) || !COUNTDOWN_CHOICES.includes(secs)) return;
+    room.settings.countdown = secs;
+    broadcast(room);
+  });
+
+  socket.on('clearBoard', () => {
+    const room = getRoom();
+    if (!isHost(room)) return;
+    clearBoard(room);
     broadcast(room);
   });
 
   socket.on('startGame', () => {
     const room = getRoom();
-    if (!room || room.hostId !== socket.id || room.phase !== 'lobby') return;
-    room.players.forEach(p => { p.score = 0; });
+    if (!isHost(room) || room.phase !== 'lobby') return;
     room.turnIndex = 0;
+    announce(room, 'start', 'Here we go', MODE_LABEL[room.mode]);
     beginRound(room);
   });
 
@@ -351,25 +381,16 @@ io.on('connection', socket => {
 
   socket.on('place', ({ x, y }) => {
     const room = getRoom();
-    if (!room || !room.round) return;
-    if (room.phase !== 'place' && room.phase !== 'clue-place') return;
+    if (!room || !room.round || room.phase !== 'place') return;
     if (!expectedPlacers(room).some(p => p.id === socket.id)) return;
     if (room.round.locked[socket.id]) return;
-
     room.round.placements[socket.id] = { x: clamp01(x), y: clamp01(y) };
-
-    if (room.mode === 'live') {
-      broadcast(room); // everyone watches the dot move
-    } else {
-      // Others only need to know that this player has placed something.
-      broadcast(room);
-    }
+    broadcast(room);
   });
 
   socket.on('lockIn', () => {
     const room = getRoom();
-    if (!room || !room.round) return;
-    if (room.phase !== 'place' && room.phase !== 'clue-place') return;
+    if (!room || !room.round || room.phase !== 'place') return;
     if (!room.round.placements[socket.id]) return;
     room.round.locked[socket.id] = true;
     broadcast(room);
@@ -378,24 +399,25 @@ io.on('connection', socket => {
 
   socket.on('revealNow', () => {
     const room = getRoom();
-    if (!room || room.hostId !== socket.id) return;
-    if (room.phase === 'place') revealRound(room);
+    if (isHost(room) && room.phase === 'place') revealRound(room);
   });
 
   socket.on('nextRound', () => {
     const room = getRoom();
     if (!room || room.phase !== 'reveal') return;
-    if (room.hostId !== socket.id && currentSubmitter(room)?.id !== socket.id) return;
+    const sub = room.round && room.round.submitterId;
+    if (!isHost(room) && sub !== socket.id) return;
     nextRound(room);
   });
 
   socket.on('backToLobby', () => {
     const room = getRoom();
-    if (!room || room.hostId !== socket.id) return;
+    if (!isHost(room)) return;
     clearTimer(room);
     room.phase = 'lobby';
     room.round = null;
-    room.history = [];
+    room.pendingTarget = null;
+    announce(room, 'lobby', 'Back to the lobby', 'Board kept');
     broadcast(room);
   });
 
@@ -405,11 +427,8 @@ io.on('connection', socket => {
     const player = findPlayer(room, socket.id);
     if (!player) return;
 
-    if (room.phase === 'lobby') {
-      room.players = room.players.filter(p => p.id !== socket.id);
-    } else {
-      player.connected = false;
-    }
+    if (room.phase === 'lobby') room.players = room.players.filter(p => p.id !== socket.id);
+    else player.connected = false;
 
     if (room.hostId === socket.id) {
       const next = activePlayers(room)[0];
@@ -422,16 +441,12 @@ io.on('connection', socket => {
       return;
     }
 
-    // Don't let a dropped player stall the round.
-    if (room.round && (room.phase === 'place' || room.phase === 'clue-place')) {
-      maybeReveal(room);
-    }
+    if (room.round && room.phase === 'place') maybeReveal(room);
     if (room.phase === 'submit' && !currentSubmitter(room)) beginRound(room);
     broadcast(room);
   });
 });
 
-// Sweep out rooms nobody came back to.
 setInterval(() => {
   const cutoff = Date.now() - 1000 * 60 * 60 * 6;
   for (const [code, room] of rooms) {
@@ -442,6 +457,4 @@ setInterval(() => {
   }
 }, 1000 * 60 * 10);
 
-server.listen(PORT, () => {
-  console.log(`Plot Party running on http://localhost:${PORT}`);
-});
+server.listen(PORT, () => console.log(`Plot Party running on http://localhost:${PORT}`));
