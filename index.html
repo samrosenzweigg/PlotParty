@@ -25,6 +25,8 @@
   --body: 'Instrument Sans', system-ui, sans-serif;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* Author display rules beat the browser's [hidden] default, so state it outright. */
+[hidden] { display: none !important; }
 html, body {
   margin: 0; height: 100%; width: 100%;
   position: fixed; overflow: hidden;
