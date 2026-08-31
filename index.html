@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#241435">
+<title>Plot Party</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Instrument+Sans:wght@400..600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #241435;
+  --ink-deep: #17092a;
+  --plum: #372050;
+  --plum-line: #4d3168;
+  --paper: #f6efe3;
+  --paper-line: #d9cbb4;
+  --marigold: #ffc145;
+  --text: #f3e9f7;
+  --muted: #a58fbd;
+  --danger: #ff5d73;
+
+  --display: 'Bricolage Grotesque', 'Trebuchet MS', sans-serif;
+  --body: 'Instrument Sans', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+body { padding-bottom: env(safe-area-inset-bottom); }
+
+button, input { font: inherit; color: inherit; }
+
+.screen { min-height: 100dvh; display: flex; flex-direction: column; }
+.pad { padding: 2rem 1.25rem 3rem; max-width: 34rem; margin: 0 auto; width: 100%; }
+
+/* ---------------------------------------------------------- home */
+
+.brandmark {
+  display: grid;
+  grid-template-columns: repeat(2, 1.15rem);
+  grid-template-rows: repeat(2, 1.15rem);
+  gap: 3px;
+  margin-bottom: 1.75rem;
+}
+.qd { border-radius: 50%; }
+.qd-a { background: var(--marigold); }
+.qd-b { background: #4fd1a5; }
+.qd-c { background: #5b8def; }
+.qd-d { background: #ff5d73; }
+
+.wordmark {
+  font-family: var(--display);
+  font-variation-settings: 'wdth' 82, 'opsz' 96;
+  font-weight: 800;
+  font-size: clamp(3.4rem, 19vw, 5.5rem);
+  line-height: 0.86;
+  letter-spacing: -0.035em;
+  margin: 0 0 1rem;
+}
+
+.lede {
+  color: var(--muted);
+  line-height: 1.5;
+  max-width: 26rem;
+  margin: 0 0 2.25rem;
+}
+
+.field { display: block; margin-bottom: 1rem; }
+.field span {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+}
+.field input, .code-input, .submit-box input {
+  width: 100%;
+  background: var(--plum);
+  border: 1.5px solid var(--plum-line);
+  border-radius: 10px;
+  padding: 0.85rem 0.9rem;
+  outline: none;
+}
+.field input:focus-visible,
+.code-input:focus-visible,
+.submit-box input:focus-visible {
+  border-color: var(--marigold);
+}
+.field.mini span { font-size: 0.78rem; }
+
+.btn {
+  width: 100%;
+  background: var(--plum);
+  border: 1.5px solid var(--plum-line);
+  border-radius: 10px;
+  padding: 0.95rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.08s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn-primary { background: var(--marigold); border-color: var(--marigold); color: var(--ink-deep); }
+.btn-ghost { background: none; border-color: transparent; color: var(--muted); }
+.btn:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; }
+
+.rule {
+  display: flex; align-items: center; gap: 0.75rem;
+  color: var(--muted); font-size: 0.85rem;
+  margin: 1.75rem 0;
+}
+.rule::before, .rule::after {
+  content: ''; flex: 1; height: 1px; background: var(--plum-line);
+}
+
+.join-row { display: flex; gap: 0.6rem; }
+.code-input {
+  flex: 1;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.5rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  text-align: center;
+}
+.join-row .btn { width: auto; padding-inline: 1.6rem; }
+
+.msg { color: var(--danger); font-size: 0.9rem; min-height: 1.2em; margin: 0.9rem 0 0; }
+
+/* ---------------------------------------------------------- lobby */
+
+.kicker { color: var(--muted); font-size: 0.9rem; margin: 0 0 0.5rem; }
+.code-display {
+  font-family: var(--display);
+  font-variation-settings: 'wdth' 88;
+  font-weight: 800;
+  font-size: clamp(3rem, 17vw, 4.5rem);
+  letter-spacing: 0.14em;
+  color: var(--marigold);
+  margin-bottom: 2rem;
+}
+
+.h2 {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.15rem;
+  margin: 2rem 0 0.75rem;
+}
+.hint { color: var(--muted); font-size: 0.88rem; margin: -0.35rem 0 0.9rem; }
+
+.roster { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.roster li {
+  display: flex; align-items: center; gap: 0.5rem;
+  background: var(--plum); border-radius: 999px;
+  padding: 0.45rem 0.9rem 0.45rem 0.5rem;
+  font-size: 0.95rem;
+}
+.roster .chip-dot { width: 0.85rem; height: 0.85rem; border-radius: 50%; flex: none; }
+.roster .tag { color: var(--muted); font-size: 0.8rem; }
+.roster li.gone { opacity: 0.4; }
+
+.axis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+
+.presets { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.9rem; }
+.preset {
+  background: none; border: 1.5px solid var(--plum-line);
+  border-radius: 999px; padding: 0.4rem 0.85rem;
+  font-size: 0.82rem; color: var(--muted); cursor: pointer;
+}
+.preset:hover, .preset:focus-visible { color: var(--text); border-color: var(--marigold); }
+
+.modes { display: grid; gap: 0.6rem; margin-bottom: 1.5rem; }
+.mode {
+  text-align: left; background: var(--plum);
+  border: 1.5px solid var(--plum-line); border-radius: 12px;
+  padding: 0.9rem 1rem; cursor: pointer; display: block;
+}
+.mode strong { font-family: var(--display); font-size: 1.05rem; display: block; }
+.mode em {
+  font-style: normal; color: var(--muted);
+  font-size: 0.85rem; line-height: 1.4; display: block; margin-top: 0.25rem;
+}
+.mode[aria-pressed="true"] { border-color: var(--marigold); background: #43285f; }
+.mode[aria-pressed="true"] strong { color: var(--marigold); }
+
+.waiting { color: var(--muted); margin-top: 2rem; }
+
+/* ---------------------------------------------------------- game */
+
+.topbar {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.7rem 1.1rem;
+  padding-top: calc(0.7rem + env(safe-area-inset-top));
+  background: var(--ink-deep);
+  font-size: 0.85rem;
+}
+.topbar-code {
+  font-family: var(--display); font-weight: 700;
+  letter-spacing: 0.2em; color: var(--marigold);
+}
+.topbar-mode { color: var(--muted); }
+.topbar-timer {
+  margin-left: auto;
+  font-family: var(--display); font-weight: 700; font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+.topbar-timer.urgent { color: var(--danger); }
+
+.stage { flex: 1; padding: 1.1rem 1.1rem 0; max-width: 34rem; margin: 0 auto; width: 100%; }
+
+.prompt-status { color: var(--muted); font-size: 0.85rem; margin: 0 0 0.3rem; }
+.prompt-item {
+  font-family: var(--display);
+  font-variation-settings: 'wdth' 85;
+  font-weight: 700;
+  font-size: clamp(1.6rem, 7vw, 2.3rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin: 0 0 1rem;
+  text-wrap: balance;
+}
+.prompt-item:empty { display: none; }
+
+.submit-box { display: grid; gap: 0.6rem; margin-top: 1rem; }
+
+/* the plot itself */
+.plot-wrap { margin: 0.5rem 0 1rem; }
+.plot-row { display: flex; align-items: stretch; gap: 0.35rem; }
+
+.axis-label {
+  color: var(--marigold);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0.35rem 0;
+  overflow-wrap: anywhere;
+}
+.lab-left, .lab-right { writing-mode: vertical-rl; width: 1.5rem; padding: 0 0.15rem; }
+.lab-left { transform: rotate(180deg); }
+
+.plot {
+  position: relative;
+  flex: 1;
+  aspect-ratio: 1;
+  background: var(--paper);
+  border-radius: 4px;
+  touch-action: none;
+  cursor: crosshair;
+  overflow: hidden;
+}
+.plot:focus-visible { outline: 3px solid var(--marigold); outline-offset: 3px; }
+
+.plot-cross::before, .plot-cross::after {
+  content: ''; position: absolute; background: var(--paper-line);
+}
+.plot-cross::before { left: 0; right: 0; top: 50%; height: 1.5px; }
+.plot-cross::after { top: 0; bottom: 0; left: 50%; width: 1.5px; }
+
+.plot-hint {
+  position: absolute; inset: auto 0 0.6rem;
+  text-align: center; color: #a3907a;
+  font-size: 0.8rem; margin: 0; pointer-events: none;
+}
+
+.dots { position: absolute; inset: 0; }
+
+.dot {
+  position: absolute;
+  width: 1.4rem; height: 1.4rem;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(36, 20, 53, 0.35);
+  display: grid; place-items: center;
+}
+.dot.is-you {
+  width: 1.75rem; height: 1.75rem;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 4px rgba(36, 20, 53, 0.12);
+}
+.dot .dot-name {
+  position: absolute; top: 105%;
+  font-size: 0.62rem; font-weight: 600;
+  color: var(--ink); white-space: nowrap;
+  background: rgba(246, 239, 227, 0.82);
+  padding: 0 3px; border-radius: 3px;
+}
+.dot.is-target {
+  border: 3px dashed var(--ink);
+  background: transparent !important;
+  width: 2rem; height: 2rem;
+}
+.dot.is-average {
+  width: 2.2rem; height: 2.2rem;
+  background: transparent;
+  border: 2px dashed #8a7660;
+}
+.dot.is-average::after {
+  content: ''; width: 0.4rem; height: 0.4rem;
+  border-radius: 50%; background: #8a7660;
+}
+.dot.pop { animation: pop 0.32s cubic-bezier(0.2, 1.5, 0.4, 1) backwards; }
+@keyframes pop {
+  from { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot.pop { animation: none; }
+  .btn { transition: none; }
+}
+
+/* tally under the plot */
+.tally { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.tally li {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.82rem; color: var(--muted);
+  background: var(--plum); border-radius: 999px; padding: 0.3rem 0.7rem 0.3rem 0.4rem;
+}
+.tally .chip-dot { width: 0.7rem; height: 0.7rem; border-radius: 50%; flex: none; }
+.tally li.in { color: var(--text); }
+.tally .pts { color: var(--marigold); font-weight: 600; }
+.tally li.note { background: none; padding-left: 0; }
+
+.actionbar {
+  position: sticky; bottom: 0;
+  padding: 0.8rem 1.1rem calc(0.8rem + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--ink) 68%, transparent);
+  display: grid; gap: 0.4rem;
+  max-width: 34rem; margin: 0 auto; width: 100%;
+}
+.actionbar.empty { display: none; }
+
+</style>
+</head>
+<body>
+
+<!-- ============================================ home -->
+<section class="screen" id="screen-home">
+  <div class="pad">
+    <div class="brandmark" aria-hidden="true">
+      <span class="qd qd-a"></span><span class="qd qd-b"></span>
+      <span class="qd qd-c"></span><span class="qd qd-d"></span>
+    </div>
+    <h1 class="wordmark">Plot<br>Party</h1>
+    <p class="lede">Everyone argues about where things belong on a four-way grid. Then you find out how wrong everyone else is.</p>
+
+    <label class="field">
+      <span>Your name</span>
+      <input id="input-name" maxlength="16" autocomplete="off" placeholder="Sam">
+    </label>
+
+    <button class="btn btn-primary" id="btn-create">Start a new game</button>
+
+    <div class="rule"><span>or join one</span></div>
+
+    <div class="join-row">
+      <input id="input-code" class="code-input" maxlength="4" autocomplete="off"
+             inputmode="text" placeholder="CODE" aria-label="Room code">
+      <button class="btn" id="btn-join">Join</button>
+    </div>
+    <p class="msg" id="home-msg" role="status"></p>
+  </div>
+</section>
+
+<!-- ============================================ lobby -->
+<section class="screen" id="screen-lobby" hidden>
+  <div class="pad">
+    <p class="kicker">Everyone opens this page and types this code</p>
+    <div class="code-display" id="lobby-code">····</div>
+
+    <h2 class="h2">Who's in</h2>
+    <ul class="roster" id="lobby-roster"></ul>
+
+    <div id="host-controls" hidden>
+      <h2 class="h2">The grid</h2>
+      <p class="hint">Two ideas that pull against each other on each axis.</p>
+      <div class="axis-grid">
+        <label class="field mini"><span>Top</span><input id="axis-top" maxlength="24"></label>
+        <label class="field mini"><span>Bottom</span><input id="axis-bottom" maxlength="24"></label>
+        <label class="field mini"><span>Left</span><input id="axis-left" maxlength="24"></label>
+        <label class="field mini"><span>Right</span><input id="axis-right" maxlength="24"></label>
+      </div>
+      <div class="presets" id="presets"></div>
+
+      <h2 class="h2">How you play</h2>
+      <div class="modes" id="mode-picker">
+        <button class="mode" data-mode="live">
+          <strong>Live</strong>
+          <em>Everyone's dot moves in real time. Loud, argumentative, no secrets.</em>
+        </button>
+        <button class="mode" data-mode="reveal">
+          <strong>Countdown</strong>
+          <em>Place in secret, 45 seconds on the clock, then all dots drop at once.</em>
+        </button>
+        <button class="mode" data-mode="clue">
+          <strong>Clue giver</strong>
+          <em>One player places it in secret and describes it out loud. Everyone else guesses. Closest wins points.</em>
+        </button>
+      </div>
+      <button class="btn btn-primary" id="btn-start">Start playing</button>
+    </div>
+
+    <p class="waiting" id="lobby-waiting">Waiting for the host to start.</p>
+  </div>
+</section>
+
+<!-- ============================================ game -->
+<section class="screen" id="screen-game" hidden>
+  <header class="topbar">
+    <span class="topbar-code" id="game-code">····</span>
+    <span class="topbar-mode" id="game-mode">Live</span>
+    <span class="topbar-timer" id="game-timer" hidden></span>
+  </header>
+
+  <div class="stage">
+    <div class="prompt">
+      <p class="prompt-status" id="prompt-status"></p>
+      <h2 class="prompt-item" id="prompt-item"></h2>
+    </div>
+
+    <!-- submit an item -->
+    <div class="submit-box" id="submit-box" hidden>
+      <input id="input-item" maxlength="60" autocomplete="off" placeholder="Anything at all">
+      <button class="btn btn-primary" id="btn-submit">Send it to the grid</button>
+    </div>
+
+    <!-- the plot -->
+    <div class="plot-wrap" id="plot-wrap" hidden>
+      <div class="axis-label lab-top" id="lab-top"></div>
+      <div class="plot-row">
+        <div class="axis-label lab-left" id="lab-left"></div>
+        <div class="plot" id="plot" role="application" tabindex="0"
+             aria-label="Placement grid. Use arrow keys to move your marker.">
+          <div class="plot-cross" aria-hidden="true"></div>
+          <div class="dots" id="dots"></div>
+          <p class="plot-hint" id="plot-hint">Tap anywhere</p>
+        </div>
+        <div class="axis-label lab-right" id="lab-right"></div>
+      </div>
+      <div class="axis-label lab-bottom" id="lab-bottom"></div>
+    </div>
+
+    <ul class="tally" id="tally"></ul>
+  </div>
+
+  <footer class="actionbar">
+    <button class="btn btn-primary" id="btn-action" hidden></button>
+    <button class="btn btn-ghost" id="btn-secondary" hidden></button>
+  </footer>
+</section>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+/* Plot Party — client */
+
+const socket = io();
+const $ = id => document.getElementById(id);
+
+let state = null;
+let lastPhase = null;
+let myName = '';
+
+const MODE_NAMES = { live: 'Live', reveal: 'Countdown', clue: 'Clue giver' };
+
+const PRESETS = [
+  { label: 'Overrated / Chaotic', top: 'Overrated', bottom: 'Underrated', left: 'Boring', right: 'Chaotic' },
+  { label: 'Sweet / Snack', top: 'A meal', bottom: 'A snack', left: 'Sweet', right: 'Savoury' },
+  { label: 'Would fight it', top: 'I could take it', bottom: 'It would end me', left: 'Small', right: 'Enormous' },
+  { label: 'Worth the money', top: 'Worth it', bottom: 'A scam', left: 'Cheap', right: 'Expensive' },
+  { label: 'Weird / Good', top: 'Good person', bottom: 'Menace', left: 'Normal', right: 'Deeply weird' }
+];
+
+// ------------------------------------------------------------- screens
+
+function show(name) {
+  for (const id of ['home', 'lobby', 'game']) {
+    $('screen-' + id).hidden = id !== name;
+  }
+}
+
+// ------------------------------------------------------------- home
+
+$('btn-create').addEventListener('click', () => {
+  myName = $('input-name').value.trim();
+  if (!myName) return fail('Add a name first so people know whose dot is whose.');
+  socket.emit('createRoom', { name: myName }, res => {
+    if (!res.ok) fail(res.error);
+  });
+});
+
+$('btn-join').addEventListener('click', join);
+$('input-code').addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
+$('input-name').addEventListener('keydown', e => { if (e.key === 'Enter') $('btn-create').click(); });
+
+function join() {
+  myName = $('input-name').value.trim();
+  const code = $('input-code').value.trim().toUpperCase();
+  if (!myName) return fail('Add a name first so people know whose dot is whose.');
+  if (code.length !== 4) return fail('Room codes are four letters.');
+  socket.emit('joinRoom', { code, name: myName }, res => {
+    if (!res.ok) fail(res.error);
+  });
+}
+
+function fail(text) { $('home-msg').textContent = text || 'That did not work.'; }
+
+// ------------------------------------------------------------- lobby
+
+const axisInputs = {
+  top: $('axis-top'), bottom: $('axis-bottom'),
+  left: $('axis-left'), right: $('axis-right')
+};
+
+for (const [side, el] of Object.entries(axisInputs)) {
+  el.addEventListener('change', pushAxes);
+  el.addEventListener('blur', pushAxes);
+}
+
+function pushAxes() {
+  socket.emit('setAxes', {
+    top: axisInputs.top.value, bottom: axisInputs.bottom.value,
+    left: axisInputs.left.value, right: axisInputs.right.value
+  });
+}
+
+PRESETS.forEach(p => {
+  const b = document.createElement('button');
+  b.className = 'preset';
+  b.type = 'button';
+  b.textContent = p.label;
+  b.addEventListener('click', () => {
+    axisInputs.top.value = p.top;
+    axisInputs.bottom.value = p.bottom;
+    axisInputs.left.value = p.left;
+    axisInputs.right.value = p.right;
+    pushAxes();
+  });
+  $('presets').appendChild(b);
+});
+
+$('mode-picker').addEventListener('click', e => {
+  const btn = e.target.closest('.mode');
+  if (btn) socket.emit('setMode', btn.dataset.mode);
+});
+
+$('btn-start').addEventListener('click', () => socket.emit('startGame'));
+
+function renderLobby(s) {
+  $('lobby-code').textContent = s.code;
+
+  $('lobby-roster').innerHTML = '';
+  s.players.forEach(p => {
+    const li = document.createElement('li');
+    if (!p.connected) li.className = 'gone';
+    li.innerHTML = `<span class="chip-dot" style="background:${p.color}"></span>`;
+    li.append(p.name);
+    if (p.id === s.hostId) {
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = 'host';
+      li.appendChild(tag);
+    }
+    $('lobby-roster').appendChild(li);
+  });
+
+  const isHost = s.you === s.hostId;
+  $('host-controls').hidden = !isHost;
+  $('lobby-waiting').hidden = isHost;
+
+  for (const [side, el] of Object.entries(axisInputs)) {
+    if (document.activeElement !== el) el.value = s.axes[side];
+  }
+  document.querySelectorAll('.mode').forEach(b => {
+    b.setAttribute('aria-pressed', String(b.dataset.mode === s.mode));
+  });
+  $('btn-start').disabled = s.players.filter(p => p.connected).length < 2;
+  $('btn-start').textContent = s.players.filter(p => p.connected).length < 2
+    ? 'Waiting for one more player'
+    : 'Start playing';
+}
+
+// ------------------------------------------------------------- the plot
+
+const plot = $('plot');
+let dragging = false;
+let lastSent = 0;
+
+function canPlace() {
+  if (!state || !state.round) return false;
+  const me = state.players.find(p => p.id === state.you);
+  if (!me) return false;
+  if (state.phase === 'clue-place') return state.round.submitterId === state.you && !me.locked;
+  if (state.phase === 'place') {
+    if (state.mode === 'clue' && state.round.submitterId === state.you) return false;
+    return !me.locked;
+  }
+  return false;
+}
+
+function pointToCoords(e) {
+  const r = plot.getBoundingClientRect();
+  return {
+    x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)),
+    y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))
+  };
+}
+
+function sendPlace(coords, force) {
+  const now = Date.now();
+  if (!force && now - lastSent < 60) return;
+  lastSent = now;
+  socket.emit('place', coords);
+}
+
+plot.addEventListener('pointerdown', e => {
+  if (!canPlace()) return;
+  dragging = true;
+  plot.setPointerCapture(e.pointerId);
+  sendPlace(pointToCoords(e), true);
+});
+plot.addEventListener('pointermove', e => {
+  if (!dragging || !canPlace()) return;
+  sendPlace(pointToCoords(e));
+});
+plot.addEventListener('pointerup', e => {
+  if (!dragging) return;
+  dragging = false;
+  sendPlace(pointToCoords(e), true);
+});
+plot.addEventListener('pointercancel', () => { dragging = false; });
+
+plot.addEventListener('keydown', e => {
+  if (!canPlace()) return;
+  const mine = state.round.placements[state.you] || { x: 0.5, y: 0.5 };
+  const step = e.shiftKey ? 0.1 : 0.02;
+  const moves = {
+    ArrowLeft: [-step, 0], ArrowRight: [step, 0],
+    ArrowUp: [0, -step], ArrowDown: [0, step]
+  };
+  if (!moves[e.key]) return;
+  e.preventDefault();
+  sendPlace({
+    x: Math.min(1, Math.max(0, mine.x + moves[e.key][0])),
+    y: Math.min(1, Math.max(0, mine.y + moves[e.key][1]))
+  }, true);
+});
+
+function renderDots(s, popIn) {
+  const box = $('dots');
+  box.innerHTML = '';
+  if (!s.round) return;
+
+  const byId = Object.fromEntries(s.players.map(p => [p.id, p]));
+  const isClueTarget = id => s.mode === 'clue' && id === s.round.submitterId;
+  const entries = Object.entries(s.round.placements);
+  const showNames = s.phase === 'reveal' || (s.mode === 'live' && entries.length > 1);
+
+  entries.forEach(([id, pos], i) => {
+    const p = byId[id];
+    if (!p) return;
+    const dot = document.createElement('div');
+    dot.className = 'dot';
+    if (id === s.you) dot.classList.add('is-you');
+    if (isClueTarget(id)) dot.classList.add('is-target');
+    if (popIn) {
+      dot.classList.add('pop');
+      dot.style.animationDelay = `${i * 70}ms`;
+    }
+    dot.style.background = p.color;
+    dot.style.left = `${pos.x * 100}%`;
+    dot.style.top = `${pos.y * 100}%`;
+
+    if (showNames || id === s.you) {
+      const tag = document.createElement('span');
+      tag.className = 'dot-name';
+      tag.textContent = isClueTarget(id) ? `${p.name}'s answer` : p.name;
+      dot.appendChild(tag);
+    }
+    box.appendChild(dot);
+  });
+
+  if (s.phase === 'reveal' && s.round.average && entries.length > 1) {
+    const avg = document.createElement('div');
+    avg.className = 'dot is-average';
+    if (popIn) {
+      avg.classList.add('pop');
+      avg.style.animationDelay = `${entries.length * 70 + 120}ms`;
+    }
+    avg.style.left = `${s.round.average.x * 100}%`;
+    avg.style.top = `${s.round.average.y * 100}%`;
+    const tag = document.createElement('span');
+    tag.className = 'dot-name';
+    tag.textContent = 'average';
+    avg.appendChild(tag);
+    box.appendChild(avg);
+  }
+}
+
+// ------------------------------------------------------------- game screen
+
+function renderGame(s) {
+  const me = s.players.find(p => p.id === s.you) || {};
+  const sub = s.players.find(p => p.id === s.submitterId);
+  const roundSub = s.round ? s.players.find(p => p.id === s.round.submitterId) : null;
+  const iAmSubmitter = s.round ? s.round.submitterId === s.you : s.submitterId === s.you;
+  const isHost = s.you === s.hostId;
+
+  $('game-code').textContent = s.code;
+  $('game-mode').textContent = MODE_NAMES[s.mode];
+
+  const timerOn = s.mode === 'reveal' && s.phase === 'place' && s.secondsLeft !== null;
+  $('game-timer').hidden = !timerOn;
+  if (timerOn) {
+    $('game-timer').textContent = `${s.secondsLeft}s`;
+    $('game-timer').classList.toggle('urgent', s.secondsLeft <= 10);
+  }
+
+  for (const side of ['top', 'bottom', 'left', 'right']) {
+    $('lab-' + side).textContent = s.axes[side];
+  }
+
+  $('prompt-item').textContent = s.round ? s.round.item : '';
+  $('submit-box').hidden = !(s.phase === 'submit' && iAmSubmitter);
+  $('plot-wrap').hidden = s.phase === 'submit';
+
+  let status = '';
+  let hint = '';
+
+  if (s.phase === 'submit') {
+    status = iAmSubmitter ? 'Your turn to name something' : 'Hang tight';
+    $('prompt-item').textContent = iAmSubmitter
+      ? 'Name a thing'
+      : `${sub ? sub.name : 'Someone'} is thinking of something`;
+    if (iAmSubmitter) setTimeout(() => $('input-item').focus(), 30);
+  } else if (s.phase === 'clue-place') {
+    status = iAmSubmitter
+      ? 'Place it in secret. No clues yet.'
+      : `${roundSub ? roundSub.name : 'Someone'} is hiding it on the grid`;
+    hint = iAmSubmitter ? 'Tap where it really belongs' : 'No peeking';
+  } else if (s.phase === 'place') {
+    if (s.mode === 'live') {
+      status = 'Everyone can see you moving';
+      hint = 'Drag your dot around';
+    } else if (s.mode === 'reveal') {
+      status = 'Place it in secret';
+      hint = 'Tap anywhere';
+    } else if (iAmSubmitter) {
+      status = 'Describe it out loud. No pointing at screens.';
+      hint = 'Your answer is locked';
+    } else {
+      status = `Listen to ${roundSub ? roundSub.name : 'the clue giver'}, then guess`;
+      hint = 'Tap your guess';
+    }
+  } else if (s.phase === 'reveal') {
+    status = s.mode === 'clue' ? 'Here is how close you got' : 'Everyone, revealed';
+    hint = '';
+  }
+
+  $('prompt-status').textContent = status;
+  $('plot-hint').textContent = hint;
+  $('plot-hint').hidden = !hint;
+
+  renderDots(s, s.phase === 'reveal' && lastPhase !== 'reveal');
+
+  // tally strip
+  const tally = $('tally');
+  tally.innerHTML = '';
+  if (s.phase === 'submit') {
+    s.players.filter(p => p.connected).forEach(p => {
+      const li = document.createElement('li');
+      if (p.id === s.submitterId) li.className = 'in';
+      li.innerHTML = `<span class="chip-dot" style="background:${p.color}"></span>`;
+      li.append(s.mode === 'clue' ? `${p.name} · ${p.score}` : p.name);
+      tally.appendChild(li);
+    });
+  } else if (s.phase === 'place' || s.phase === 'clue-place') {
+    const waiting = s.mode === 'clue' && s.phase === 'place'
+      ? s.players.filter(p => p.connected && p.id !== s.round.submitterId)
+      : s.players.filter(p => p.connected);
+    waiting.forEach(p => {
+      const li = document.createElement('li');
+      if (p.locked) li.className = 'in';
+      li.innerHTML = `<span class="chip-dot" style="background:${p.color}"></span>`;
+      li.append(p.locked ? `${p.name} — in` : p.name);
+      tally.appendChild(li);
+    });
+  } else if (s.phase === 'reveal') {
+    if (s.round.scores) {
+      Object.entries(s.round.scores)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([id, pts]) => {
+          const p = s.players.find(x => x.id === id);
+          if (!p) return;
+          const li = document.createElement('li');
+          li.className = 'in';
+          li.innerHTML = `<span class="chip-dot" style="background:${p.color}"></span>`;
+          li.append(p.name + ' ');
+          const span = document.createElement('span');
+          span.className = 'pts';
+          span.textContent = `+${pts}`;
+          li.appendChild(span);
+          tally.appendChild(li);
+        });
+    }
+    if (s.round.outlierId) {
+      const p = s.players.find(x => x.id === s.round.outlierId);
+      if (p) {
+        const li = document.createElement('li');
+        li.className = 'note';
+        li.textContent = `${p.name} is furthest from everyone else.`;
+        tally.appendChild(li);
+      }
+    }
+  }
+
+  // buttons
+  const action = $('btn-action');
+  const secondary = $('btn-secondary');
+  action.hidden = true;
+  secondary.hidden = true;
+
+  const placing = s.phase === 'place' || s.phase === 'clue-place';
+  const expected = placing && (
+    s.phase === 'clue-place'
+      ? iAmSubmitter
+      : !(s.mode === 'clue' && iAmSubmitter)
+  );
+
+  if (placing && expected) {
+    action.hidden = false;
+    const placed = s.round.placements[s.you];
+    action.disabled = !placed || me.locked;
+    action.textContent = me.locked
+      ? 'Locked in — waiting for the rest'
+      : s.phase === 'clue-place' ? 'Lock in the secret answer' : 'Lock it in';
+    action.onclick = () => socket.emit('lockIn');
+  }
+
+  if (s.phase === 'place' && isHost) {
+    secondary.hidden = false;
+    secondary.textContent = 'Skip the wait and reveal';
+    secondary.onclick = () => socket.emit('revealNow');
+  }
+
+  if (s.phase === 'reveal' && (isHost || iAmSubmitter)) {
+    action.hidden = false;
+    action.disabled = false;
+    action.textContent = 'Next round';
+    action.onclick = () => socket.emit('nextRound');
+  }
+  if (s.phase === 'reveal' && isHost) {
+    secondary.hidden = false;
+    secondary.textContent = 'End game';
+    secondary.onclick = () => socket.emit('backToLobby');
+  }
+
+  document.querySelector('.actionbar').classList
+    .toggle('empty', action.hidden && secondary.hidden);
+}
+
+$('btn-submit').addEventListener('click', sendItem);
+$('input-item').addEventListener('keydown', e => { if (e.key === 'Enter') sendItem(); });
+
+function sendItem() {
+  const v = $('input-item').value.trim();
+  if (!v) return;
+  socket.emit('submitItem', v);
+  $('input-item').value = '';
+}
+
+// ------------------------------------------------------------- wiring
+
+socket.on('state', s => {
+  state = s;
+  if (s.phase === 'lobby') {
+    show('lobby');
+    renderLobby(s);
+  } else {
+    show('game');
+    renderGame(s);
+  }
+  lastPhase = s.phase;
+});
+
+socket.on('tick', ({ secondsLeft }) => {
+  if (!state || state.mode !== 'reveal' || state.phase !== 'place') return;
+  state.secondsLeft = secondsLeft;
+  $('game-timer').textContent = `${secondsLeft}s`;
+  $('game-timer').classList.toggle('urgent', secondsLeft <= 10);
+});
+
+socket.on('disconnect', () => {
+  $('prompt-status').textContent = 'Lost the connection. Trying to get back in…';
+});
+
+show('home');
+
+</script>
+</body>
+</html>

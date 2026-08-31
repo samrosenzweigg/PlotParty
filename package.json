@@ -1,0 +1,14 @@
+{
+  "name": "plot-party",
+  "version": "1.0.0",
+  "description": "A web party game where everyone plots things on a shared four-way grid.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3"
+  }
+}
