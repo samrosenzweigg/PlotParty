@@ -1,14 +1,17 @@
 {
-  "name": "plot-party",
-  "version": "1.0.0",
-  "description": "A web party game where everyone plots things on a shared four-way grid.",
+  "name": "bingo-bango",
+  "version": "6.0.0",
+  "private": true,
+  "description": "A party game shell that hosts mini games. Plot Party is the first one.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
-  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
-    "express": "^5.2.1",
-    "socket.io": "^4.8.3"
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
   }
 }
