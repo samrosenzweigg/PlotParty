@@ -1,50 +1,81 @@
-/* Point Blank — Bingo Bango mini-game (client) */
+/* Point Blank \u2014 Bingo Bango mini-game (client) */
 (function () {
   'use strict';
 
   var CSS = [
-    '.pb{--wall:#E8EBEE;--ink:#1D2733;--hi:#FFD23F;--siren:#E0412B;--mug:#3A6EA5;color:var(--ink);font:inherit;max-width:560px;margin:0 auto;padding:12px 14px 28px;display:flex;flex-direction:column;gap:14px}',
+    // Kraft-cardboard table with paper cards taped on. Self-contained colours so contrast
+    // never depends on the shell's theme.
+    '.pb{--kraft:#C9A06C;--kraft-dk:#A97E4B;--paper:#FFFBF0;--ink:#2A1E14;--ink2:#4A3726;--hi:#FFD23F;--red:#D2382A;--board:#3A2A1C;',
+    'color:var(--ink);max-width:560px;margin:0 auto;padding:14px 14px 32px;display:flex;flex-direction:column;gap:16px;border-radius:10px;',
+    'font-family:-apple-system,system-ui,sans-serif;background-color:var(--kraft);',
+    'background-image:radial-gradient(rgba(90,60,30,.18) 1px,transparent 1.5px),radial-gradient(rgba(255,240,210,.18) 1px,transparent 1.5px),repeating-linear-gradient(90deg,rgba(0,0,0,.035) 0 2px,transparent 2px 7px);',
+    'background-size:9px 9px,13px 13px,auto;background-position:0 0,4px 6px,0 0;box-shadow:inset 0 0 0 3px var(--kraft-dk)}',
     '.pb [hidden]{display:none !important}',
-    '.pb-top{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px}',
-    '.pb-timer{font-weight:800;font-variant-numeric:tabular-nums;font-size:20px}',
-    '.pb-timer.low{color:var(--siren)}',
-    '.pb-sec{display:flex;flex-direction:column;gap:12px}',
-    '.pb-who{display:flex;align-items:center;gap:12px;font-size:22px;font-weight:800}',
-    '.pb-who .pb-face{width:56px;height:56px}',
-    '.pb-face{width:40px;height:40px;border-radius:50%;overflow:hidden;flex:none;display:flex;align-items:center;justify-content:center;background:var(--mug);color:#fff;font-weight:800}',
-    '.pb-face>*{width:100%;height:100%}',
-    '.pb-stem{font-size:26px;line-height:1.15;font-weight:800;letter-spacing:-.01em}',
+    '.pb-hand{font-family:"Permanent Marker","Marker Felt","Comic Sans MS",cursive;font-weight:400;letter-spacing:.01em}',
+    '.pb-top{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;white-space:nowrap}',
+    '.pb-top>.pb-row{margin-left:auto;flex-wrap:nowrap;gap:4px}',
+    '.pb-top button.alt{font-size:14px;padding:6px 4px}',
+    '.pb-timer{font-family:"Permanent Marker","Marker Felt",cursive;font-size:24px;background:var(--paper);padding:2px 12px;border-radius:4px;transform:rotate(2deg);box-shadow:0 2px 0 var(--kraft-dk);font-variant-numeric:tabular-nums}',
+    '.pb-timer.low{color:#fff;background:var(--red);animation:pb-pulse .6s ease-in-out infinite alternate}',
+    '.pb-sec{display:flex;flex-direction:column;gap:14px}',
+    '.pb-paper{position:relative;background:var(--paper);border-radius:3px;padding:18px 16px 16px;box-shadow:0 1px 0 #e6dcc4,0 6px 14px rgba(60,35,10,.35);transform:rotate(-1deg)}',
+    '.pb-paper::before{content:"";position:absolute;top:-11px;left:50%;width:84px;height:22px;margin-left:-42px;background:rgba(255,240,180,.75);transform:rotate(-3deg);box-shadow:0 1px 2px rgba(0,0,0,.15)}',
+    '.pb-paper.tilt{transform:rotate(1.2deg)}',
+    '.pb-who{display:flex;align-items:center;gap:12px;font-size:26px}',
+    '.pb-who .pb-face{width:60px;height:60px}',
+    '.pb-face{width:42px;height:42px;border-radius:50%;overflow:hidden;flex:none;display:flex;align-items:center;justify-content:center;background:var(--board);color:var(--paper);font-weight:800;border:3px solid var(--paper);box-shadow:0 2px 4px rgba(0,0,0,.3)}',
+    '.pb-face>*{width:100%;height:100%;object-fit:cover}',
+    '.pb-stem{font-family:"Permanent Marker","Marker Felt",cursive;font-size:30px;line-height:1.15;color:var(--ink)}',
     '.pb-stem::after{content:"\\2026"}',
-    '.pb textarea{width:100%;box-sizing:border-box;min-height:96px;font:inherit;font-size:20px;padding:12px;border:3px solid var(--ink);border-radius:6px;background:#fff;color:var(--ink);resize:none}',
-    '.pb textarea:focus{outline:4px solid var(--hi)}',
-    '.pb-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}',
-    '.pb-count{margin-left:auto;font-size:13px;opacity:.7;font-variant-numeric:tabular-nums}',
-    '.pb button{font:inherit;font-weight:700;font-size:17px;padding:12px 16px;border-radius:6px;border:3px solid var(--ink);background:#fff;color:var(--ink);-webkit-tap-highlight-color:transparent}',
-    '.pb button.go{background:var(--ink);color:#fff}',
-    '.pb button.alt{border-color:transparent;background:transparent;text-decoration:underline;padding:8px 4px}',
-    '.pb button:disabled{opacity:.4}',
-    '.pb button:focus-visible{outline:4px solid var(--hi)}',
-    '.pb-small{font-size:14px;opacity:.75}',
-    '.pb-card{background:#fff;border:3px solid var(--ink);border-radius:6px;padding:16px;font-size:24px;line-height:1.2;font-weight:800}',
-    '.pb-card span{font-weight:500}',
-    '.pb-aim{position:relative;background:var(--ink);color:#fff;border-radius:6px;height:300px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;',
-    'background-image:repeating-linear-gradient(to bottom,rgba(255,255,255,.14) 0 2px,transparent 2px 30px)}',
-    '.pb-arrow{width:150px;height:150px;transition:transform .08s linear}',
-    '.pb-arrow path{fill:#5b6675}',
+    '.pb textarea{width:100%;box-sizing:border-box;min-height:100px;font:600 21px/1.35 -apple-system,system-ui,sans-serif;padding:10px 12px;border:0;border-radius:2px;color:var(--ink);resize:none;',
+    'background:#fff repeating-linear-gradient(to bottom,transparent 0 27px,#B9D3EA 27px 28px);background-position:0 10px;box-shadow:inset 0 0 0 2px var(--ink2)}',
+    '.pb textarea:focus{outline:4px solid var(--hi);outline-offset:2px}',
+    '.pb-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}',
+    '.pb-count{margin-left:auto;font-size:14px;font-weight:700;color:var(--ink2);font-variant-numeric:tabular-nums}',
+    '.pb button{font:800 18px -apple-system,system-ui,sans-serif;padding:13px 18px;border-radius:6px;border:3px solid var(--ink);background:var(--paper);color:var(--ink);box-shadow:0 4px 0 var(--ink);-webkit-tap-highlight-color:transparent;transition:transform .08s,box-shadow .08s;cursor:pointer}',
+    '.pb button:active{transform:translateY(4px);box-shadow:0 0 0 var(--ink)}',
+    '.pb button.go{background:var(--red);color:#fff}',
+    '.pb button.alt{border:0;background:transparent;box-shadow:none;text-decoration:underline;padding:8px 4px;font-size:16px;color:var(--ink)}',
+    '.pb button:disabled{opacity:.45}',
+    '.pb button:focus-visible{outline:4px solid var(--hi);outline-offset:2px}',
+    '.pb-small{font-size:15px;font-weight:600;color:var(--ink2)}',
+    '.pb-top .pb-small,.pb>.pb-sec>.pb-small{color:var(--ink)}',
+    '.pb-card{font-size:25px;line-height:1.25;font-weight:800}',
+    '.pb-card .pb-stemtxt{font-family:"Permanent Marker","Marker Felt",cursive;font-weight:400;display:block;margin-bottom:4px}',
+    '.pb-card span:last-child{font-weight:700}',
+    '.pb-aim{position:relative;background:var(--board);color:var(--paper);border-radius:6px;height:310px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;',
+    'background-image:repeating-linear-gradient(to bottom,rgba(255,251,240,.13) 0 2px,transparent 2px 30px);box-shadow:inset 0 0 0 4px #2A1D12,0 6px 14px rgba(60,35,10,.35)}',
+    '.pb-arrow{width:160px;height:160px;transition:transform .09s linear;filter:drop-shadow(0 6px 0 rgba(0,0,0,.35))}',
+    '.pb-arrow path{fill:#8C7A66;stroke:var(--paper);stroke-width:3;stroke-linejoin:round}',
     '.pb-aim.on .pb-arrow path{fill:var(--hi)}',
-    '.pb-aimname{font-size:26px;font-weight:800;display:flex;align-items:center;gap:10px;min-height:44px}',
-    '.pb-hold{position:absolute;left:0;bottom:0;height:8px;background:var(--hi);width:0}',
-    '.pb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}',
-    '.pb-grid button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px;font-size:14px}',
-    '.pb-grid button.sel{background:var(--hi)}',
-    '.pb-tally{display:flex;flex-direction:column;gap:6px}',
-    '.pb-tally div{display:flex;align-items:center;gap:8px;font-weight:700}',
-    '.pb-tally .hit{background:var(--hi);border-radius:6px;padding:4px 6px}',
-    '.pb-tally .pb-face{width:28px;height:28px;font-size:12px}',
-    '.pb-big{font-size:34px;font-weight:800;line-height:1}',
-    '.pb-score{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:700}',
-    '.pb-score b{margin-left:auto;font-variant-numeric:tabular-nums}',
-    '@media (prefers-reduced-motion:reduce){.pb-arrow{transition:none}}'
+    '.pb-aim.on .pb-aimname{animation:pb-pop .25s ease-out}',
+    '.pb-aimname{font-family:"Permanent Marker","Marker Felt",cursive;font-size:28px;display:flex;align-items:center;gap:10px;min-height:48px;color:var(--paper)}',
+    '.pb-hold{position:absolute;left:0;bottom:0;height:10px;background:var(--hi);width:0}',
+    '.pb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px}',
+    '.pb-grid button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px;font-size:15px}',
+    '.pb-grid button:nth-child(odd){transform:rotate(-1.5deg)}.pb-grid button:nth-child(even){transform:rotate(1.5deg)}',
+    '.pb-grid button.sel{background:var(--hi);animation:pb-pop .3s ease-out}',
+    '.pb-tally{display:flex;flex-direction:column;gap:8px}',
+    '.pb-tally>div{display:flex;align-items:center;gap:8px;font-weight:800;background:var(--paper);border-radius:4px;padding:6px 8px;box-shadow:0 2px 0 var(--kraft-dk)}',
+    '.pb-tally .hit{background:var(--hi)}',
+    '.pb-tally .pb-face{width:30px;height:30px;font-size:12px;border-width:2px}',
+    '.pb-big{font-family:"Permanent Marker","Marker Felt",cursive;font-size:36px;line-height:1.05;color:var(--ink)}',
+    '.pb-score{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:800;background:var(--paper);border-radius:4px;padding:8px 10px;box-shadow:0 3px 0 var(--kraft-dk)}',
+    '.pb-score b{margin-left:auto;font-family:"Permanent Marker","Marker Felt",cursive;font-weight:400;font-size:24px;font-variant-numeric:tabular-nums}',
+    '.pb-score:first-of-type{background:var(--hi)}',
+    '.pb-stamp{position:absolute;right:10px;top:50%;font-family:"Permanent Marker","Marker Felt",cursive;font-size:30px;color:var(--red);border:4px solid var(--red);border-radius:6px;padding:0 10px;transform:translateY(-50%) rotate(-12deg);opacity:.9;animation:pb-stamp .45s cubic-bezier(.2,1.6,.4,1) both;animation-delay:.35s;background:rgba(255,251,240,.6)}',
+    '.pb-rel{position:relative}',
+    '.pb-deal{animation:pb-deal .45s cubic-bezier(.2,1.3,.4,1) both}',
+    '.pb-flip{animation:pb-flip .4s ease-out}',
+    '.pb-rise>*{animation:pb-rise .4s ease-out both}',
+    '.pb-rise>*:nth-child(2){animation-delay:.08s}.pb-rise>*:nth-child(3){animation-delay:.16s}.pb-rise>*:nth-child(4){animation-delay:.24s}.pb-rise>*:nth-child(5){animation-delay:.32s}.pb-rise>*:nth-child(n+6){animation-delay:.4s}',
+    '@keyframes pb-deal{from{opacity:0;transform:translate(60px,-30px) rotate(12deg) scale(.9)}to{opacity:1}}',
+    '@keyframes pb-flip{0%{transform:rotateX(0)}50%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}',
+    '@keyframes pb-pop{0%{transform:scale(.8)}60%{transform:scale(1.12)}100%{transform:scale(1)}}',
+    '@keyframes pb-stamp{from{opacity:0;transform:translateY(-50%) rotate(-12deg) scale(2.6)}to{opacity:.9;transform:translateY(-50%) rotate(-12deg) scale(1)}}',
+    '@keyframes pb-rise{from{opacity:0;transform:translateY(16px)}to{opacity:1}}',
+    '@keyframes pb-pulse{to{transform:rotate(2deg) scale(1.1)}}',
+    '@media (prefers-reduced-motion:reduce){.pb *,.pb *::before{animation:none !important;transition:none !important}}'
   ].join('\n');
 
   var LS_CAL = 'pb-calib', LS_DRAFT = 'pb-draft-';
@@ -71,9 +102,10 @@
   function send(type, payload) {
     var s;
     try { s = JSON.stringify(payload || {}); } catch (e) { return; }
-    if (s.length > 1900000) { api.banner('That’s too big to send.', 'warn'); return; }
+    if (s.length > 1900000) { api.banner('That\u2019s too big to send.', 'warn'); return; }
     api.send(type, payload || {});
   }
+  function replay(el, cls) { if (!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
   function sd(a, b) { return ((a - b + 540) % 360) - 180; }
   function others() { var me = meId(); return (view.present || []).filter(function (id) { return id !== me; }); }
   function liveHeading() { return heading != null && Date.now() - lastOri < 1500; }
@@ -98,7 +130,7 @@
       oriOn = true;
       return true;
     }).catch(function () {
-      api.banner('Motion access is off — tap faces to vote instead.', 'warn');
+      api.banner('Motion access is off \u2014 tap faces to vote instead.', 'warn');
       return false;
     });
   }
@@ -126,7 +158,7 @@
     // write
     var w = els.write = h('section', 'pb-sec');
     els.wProg = h('div', 'pb-small');
-    els.wWho = h('div', 'pb-who');
+    els.wWho = h('div', 'pb-who pb-hand');
     els.wStem = h('div', 'pb-stem');
     els.wText = h('textarea');
     els.wText.setAttribute('placeholder', 'Finish it so everyone points at them');
@@ -146,8 +178,8 @@
     els.wReroll = h('button', 'alt', 'Swap prompt');
     els.wReroll.onclick = function () { send('reroll', { cardId: writeCardId }); };
     var wRow = h('div', 'pb-row'); wRow.append(els.wSubmit, els.wReroll, els.wCount);
-    els.wForm = h('div', 'pb-sec'); els.wForm.append(els.wWho, els.wStem, els.wText, wRow);
-    els.wDone = h('div', 'pb-sec');
+    els.wForm = h('div', 'pb-sec pb-paper'); els.wForm.append(els.wWho, els.wStem, els.wText, wRow);
+    els.wDone = h('div', 'pb-sec pb-paper tilt');
     w.append(els.wProg, els.wForm, els.wDone);
 
     // calibrate
@@ -159,7 +191,7 @@
     var v = els.vote = h('section', 'pb-sec');
     els.vCard = h('div', 'pb-card');
     els.vMeta = h('div', 'pb-small');
-    els.vWriter = h('div', 'pb-big', 'This one’s yours. Poker face.');
+    els.vWriter = h('div', 'pb-big', 'This one\u2019s yours. Poker face.');
     els.aim = h('div', 'pb-aim');
     els.aim.innerHTML = '<svg class="pb-arrow" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 4 L90 50 L64 50 L64 96 L36 96 L36 50 L10 50 Z"/></svg>';
     els.arrow = els.aim.firstChild;
@@ -182,8 +214,8 @@
   }
 
   function promptText(card) {
-    var d = h('div', 'pb-card');
-    d.append(document.createTextNode(card.stem + '… '));
+    var d = h('div', 'pb-card pb-paper');
+    d.append(h('span', 'pb-stemtxt', card.stem + '\u2026'));
     d.append(h('span', null, card.text));
     return d;
   }
@@ -199,7 +231,8 @@
         writeCardId = card.id;
         els.wText.value = load(LS_DRAFT + card.id) || '';
         els.wSubmit.disabled = false;
-      }
+        replay(els.wForm, 'pb-deal');
+      } else if (els.wStem.textContent && els.wStem.textContent !== card.stem) replay(els.wStem, 'pb-flip');
       els.wText.maxLength = view.maxText || 110;
       els.wCount.textContent = els.wText.value.length + '/' + (view.maxText || 110);
       els.wWho.textContent = '';
@@ -210,17 +243,18 @@
       writeCardId = null;
       els.wDone.textContent = '';
       els.wDone.append(h('div', 'pb-big', 'All done.'),
-        h('div', 'pb-small', view.waitingOn ? 'Waiting on ' + view.waitingOn + ' more.' : 'Moving on…'));
+        h('div', 'pb-small', view.waitingOn ? 'Waiting on ' + view.waitingOn + ' more.' : 'Moving on\u2026'));
     }
   }
 
   function renderCal() {
     var b = els.cBody, me = meId(), list = others();
     b.textContent = '';
+    b.className = 'pb-sec pb-paper';
     if ((view.calibrated || []).indexOf(me) >= 0) {
       var waiting = (view.present || []).filter(function (id) { return view.calibrated.indexOf(id) < 0; }).length;
       b.append(h('div', 'pb-big', 'Ready to aim.'),
-        h('div', 'pb-small', waiting ? 'Waiting on ' + waiting + ' to set up.' : 'Starting…'));
+        h('div', 'pb-small', waiting ? 'Waiting on ' + waiting + ' to set up.' : 'Starting\u2026'));
       return;
     }
     b.append(h('div', 'pb-big', 'Voting is by pointing.'),
@@ -240,7 +274,7 @@
       var who = h('div', 'pb-who'); who.append(face(id), h('span', null, nameOf(id)));
       var set = h('button', 'go', 'Aimed at ' + nameOf(id));
       set.onclick = function () {
-        if (!liveHeading()) { api.banner('No compass reading yet — move your phone a little and try again.', 'warn'); return; }
+        if (!liveHeading()) { api.banner('No compass reading yet \u2014 move your phone a little and try again.', 'warn'); return; }
         calDraft[id] = heading; calIdx += 1;
         if (calIdx >= list.length) {
           Object.keys(calDraft).forEach(function (k) { calib[k] = calDraft[k]; });
@@ -256,15 +290,17 @@
         b.append(same2);
       }
     }
-    var tap = h('button', 'alt', 'Skip — I’ll tap faces to vote');
+    var tap = h('button', 'alt', 'Skip \u2014 I\u2019ll tap faces to vote');
     tap.onclick = function () { send('calibrated', { mode: 'tap' }); };
     b.append(tap);
   }
 
   function renderVote() {
     var me = meId(), card = view.card;
-    if (card.id !== voteCardId) { voteCardId = card.id; sentVote = null; hold = { id: null, since: 0 }; }
+    var fresh = card.id !== voteCardId;
+    if (fresh) { voteCardId = card.id; sentVote = null; hold = { id: null, since: 0 }; }
     els.vCard.replaceWith(els.vCard = promptText(card));
+    if (fresh) replay(els.vCard, 'pb-deal');
     els.vMeta.textContent = view.left ? view.left + ' more after this' : 'Last one';
     var writer = !!view.amWriter;
     els.vWriter.hidden = !writer;
@@ -290,7 +326,7 @@
     var cands = others().filter(function (id) { return calib[id] != null; });
     if (!liveHeading() || !cands.length) {
       els.aim.classList.remove('on');
-      els.aimName.textContent = cands.length ? 'Waiting for compass…' : 'No seats set — tap a face below';
+      els.aimName.textContent = cands.length ? 'Waiting for compass\u2026' : 'No seats set \u2014 tap a face below';
       els.holdBar.style.width = '0';
       return;
     }
@@ -317,9 +353,12 @@
 
   function renderReveal() {
     var r = els.rev, c = view.card, me = meId();
+    var fresh = r.dataset.card !== c.id; r.dataset.card = c.id;
     r.textContent = '';
+    r.classList.toggle('pb-rise', fresh);
     r.append(promptText(c));
-    var about = h('div', 'pb-who'); about.append(face(c.target), h('span', null, 'It was ' + (c.target === me ? 'you' : nameOf(c.target))));
+    var about = h('div', 'pb-who pb-hand pb-paper tilt'); about.append(face(c.target), h('span', null, 'It was ' + (c.target === me ? 'you' : nameOf(c.target))));
+    if (fresh) about.append(h('div', 'pb-stamp', 'GUILTY'));
     var by = h('div', 'pb-score'); by.append(face(c.writer), h('span', null, 'Written by ' + (c.writer === me ? 'you' : nameOf(c.writer))), h('b', null, '+' + view.earned));
     r.append(about, by);
     var counts = {};
@@ -327,7 +366,7 @@
     var tally = h('div', 'pb-tally');
     Object.keys(counts).sort(function (a, b) { return counts[b].length - counts[a].length; }).forEach(function (t) {
       var row = h('div', t === c.target ? 'hit' : null);
-      row.append(face(t), h('span', null, nameOf(t) + ' ×' + counts[t].length + ' '));
+      row.append(face(t), h('span', null, nameOf(t) + ' \u00d7' + counts[t].length + ' '));
       counts[t].forEach(function (v) { row.append(face(v)); });
       tally.append(row);
     });
@@ -339,6 +378,7 @@
   function renderEnd() {
     var e = els.end, me = meId();
     e.textContent = '';
+    e.classList.add('pb-rise');
     e.append(h('div', 'pb-big', 'Round ' + view.round + ' done.'));
     Object.keys(view.scores || {}).sort(function (a, b) { return view.scores[b] - view.scores[a]; }).forEach(function (id) {
       var row = h('div', 'pb-score'); row.append(face(id), h('span', null, id === me ? 'You' : nameOf(id)), h('b', null, String(view.scores[id])));
@@ -367,6 +407,7 @@
     mount: function (container, a) {
       api = a;
       if (!document.getElementById('pb-style')) { var st = document.createElement('style'); st.id = 'pb-style'; st.textContent = CSS; document.head.appendChild(st); }
+      if (!document.getElementById('pb-font')) { var lf = document.createElement('link'); lf.id = 'pb-font'; lf.rel = 'stylesheet'; lf.href = 'https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap'; document.head.appendChild(lf); }
       build();
       container.appendChild(root);
       tickId = setInterval(tick, 250);
