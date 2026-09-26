@@ -17,10 +17,12 @@ const { Server } = require('socket.io');
 
 const GAME_MODULES = [
   require('./game-plotparty.js'),
+   require('./game-birdflew.js'),
 ];
 
 const CLIENT_FILES = {
   plotparty: 'client-plotparty.js',
+     birdflew: 'client-birdflew.js',
 };
 
 const GAMES = {};
