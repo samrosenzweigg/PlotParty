@@ -15,8 +15,8 @@
 const DUR = {
   name: 40000,
   sound: 60000,
-  draw: 165000,
-  reveal: 11000,
+  draw: 180000,
+  reveal: 17000,
   vote: 25000,
   matchresult: 6500,
   champion: 180000, // watchdog; host can end sooner
